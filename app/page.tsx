@@ -30,6 +30,8 @@ type Draft = {
   data: ReceiptData;
   logo: string;
   logoScale: number;
+  logoX: number;
+  logoY: number;
 };
 
 const STORAGE_KEY = "transfer-receipt-layout-v3";
@@ -124,6 +126,8 @@ export default function Home() {
   const [data, setData] = useState<ReceiptData>(defaults);
   const [logo, setLogo] = useState("");
   const [logoScale, setLogoScale] = useState(100);
+  const [logoX, setLogoX] = useState(0);
+  const [logoY, setLogoY] = useState(0);
   const [status, setStatus] = useState("已就绪");
   const [hydrated, setHydrated] = useState(false);
 
@@ -144,7 +148,7 @@ export default function Home() {
   };
 
   const save = (showStatus = true) => {
-    const draft: Draft = { data, logo, logoScale };
+    const draft: Draft = { data, logo, logoScale, logoX, logoY };
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
     if (showStatus) setStatus("草稿已保存");
   };
@@ -160,6 +164,8 @@ export default function Home() {
       setData({ ...defaults, ...draft.data });
       setLogo(draft.logo || "");
       setLogoScale(Math.min(160, Math.max(60, draft.logoScale || 100)));
+      setLogoX(Math.min(80, Math.max(-80, draft.logoX || 0)));
+      setLogoY(Math.min(60, Math.max(-60, draft.logoY || 0)));
       setStatus("草稿已读取");
     } catch {
       setStatus("草稿读取失败");
@@ -171,6 +177,8 @@ export default function Home() {
     setData(defaults);
     setLogo("");
     setLogoScale(100);
+    setLogoX(0);
+    setLogoY(0);
     window.localStorage.removeItem(STORAGE_KEY);
     setStatus("已恢复默认内容");
   };
@@ -202,6 +210,18 @@ export default function Home() {
     });
   };
 
+  const moveLogo = (deltaX: number, deltaY: number) => {
+    setLogoX((current) => Math.min(80, Math.max(-80, current + deltaX)));
+    setLogoY((current) => Math.min(60, Math.max(-60, current + deltaY)));
+    setStatus(`Logo 已移动 ${deltaX || deltaY}px`);
+  };
+
+  const centerLogo = () => {
+    setLogoX(0);
+    setLogoY(0);
+    setStatus("Logo 位置已复位");
+  };
+
   useEffect(() => {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (raw) {
@@ -210,6 +230,8 @@ export default function Home() {
         setData({ ...defaults, ...draft.data });
         setLogo(draft.logo || "");
         setLogoScale(Math.min(160, Math.max(60, draft.logoScale || 100)));
+        setLogoX(Math.min(80, Math.max(-80, draft.logoX || 0)));
+        setLogoY(Math.min(60, Math.max(-60, draft.logoY || 0)));
       } catch {
         window.localStorage.removeItem(STORAGE_KEY);
       }
@@ -221,7 +243,7 @@ export default function Home() {
     if (!hydrated) return;
     const timer = window.setTimeout(() => save(false), 700);
     return () => window.clearTimeout(timer);
-  }, [data, logo, logoScale, hydrated]);
+  }, [data, logo, logoScale, logoX, logoY, hydrated]);
 
   return (
     <main className="app-shell">
@@ -261,6 +283,20 @@ export default function Home() {
                 <button type="button" aria-label="缩小 Logo" disabled={logoScale <= 60} onClick={() => changeLogoScale(-10)}>−</button>
                 <output>{logoScale}%</output>
                 <button type="button" aria-label="放大 Logo" disabled={logoScale >= 160} onClick={() => changeLogoScale(10)}>＋</button>
+              </div>
+            </div>
+            <div className="logo-position-controls" aria-label="Logo 位置调整">
+              <div className="position-copy">
+                <span>Logo 位置</span>
+                <small>X {logoX}px · Y {logoY}px</small>
+                <button type="button" onClick={centerLogo}>居中复位</button>
+              </div>
+              <div className="position-pad">
+                <button type="button" className="move-up" aria-label="Logo 上移" disabled={logoY <= -60} onClick={() => moveLogo(0, -5)}>↑</button>
+                <button type="button" className="move-left" aria-label="Logo 左移" disabled={logoX <= -80} onClick={() => moveLogo(-5, 0)}>←</button>
+                <span aria-hidden="true">●</span>
+                <button type="button" className="move-right" aria-label="Logo 右移" disabled={logoX >= 80} onClick={() => moveLogo(5, 0)}>→</button>
+                <button type="button" className="move-down" aria-label="Logo 下移" disabled={logoY >= 60} onClick={() => moveLogo(0, 5)}>↓</button>
               </div>
             </div>
             <div className="editor-grid">
@@ -319,7 +355,14 @@ export default function Home() {
             <SafetyMarks />
 
             <div className="page-one-content">
-              <div className="receipt-brand" style={{ "--logo-scale": logoScale / 100 } as CSSProperties}>
+              <div
+                className="receipt-brand"
+                style={{
+                  "--logo-scale": logoScale / 100,
+                  "--logo-x": `${logoX}px`,
+                  "--logo-y": `${logoY}px`,
+                } as CSSProperties}
+              >
                 {logo ? (
                   <img src={logo} alt="品牌 Logo" />
                 ) : (
