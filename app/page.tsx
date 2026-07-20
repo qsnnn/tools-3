@@ -1,607 +1,391 @@
 "use client";
 
-import { ChangeEvent, CSSProperties, useEffect, useMemo, useState } from "react";
+import { ChangeEvent, ReactNode, useEffect, useMemo, useState } from "react";
 
-type OutputLanguage = "en" | "zh";
-
-type RecordData = {
+type ReceiptData = {
   brandName: string;
-  brandTagline: string;
-  accent: string;
-  statementTitle: string;
-  referenceNo: string;
-  valueDate: string;
-  referenceNo2: string;
-  beneficiaryCountry: string;
-  beneficiaryName: string;
-  beneficiaryBank: string;
+  documentFamily: string;
+  generatedAt: string;
+  transactionReference: string;
+  telegraphicReference: string;
+  bankLocation: string;
   beneficiaryAccount: string;
+  paymentCurrency: string;
+  beneficiaryName: string;
+  beneficiaryBankName: string;
+  beneficiaryBankAddress: string;
   beneficiarySwift: string;
-  payerName: string;
-  payerAccount: string;
-  payerReference: string;
-  transferCurrency: string;
-  transferAmount: string;
-  settlementOption: string;
-  feePolicy: string;
-  paymentMethod: string;
-  memo: string;
-  language: OutputLanguage;
+  sourceAccountType: string;
+  sourceAccountDetail: string;
+  paymentAmount: string;
+  feeNotice: string;
+  transferNotice: string;
+  paymentDate: string;
+  paymentDateNotice: string;
+  chargePolicy: string;
+  footerAddress: string;
 };
 
-type SavedDraft = {
-  data: RecordData;
+type Draft = {
+  data: ReceiptData;
   logo: string;
-  maskAccount: boolean;
-  savedAt: string;
 };
 
-const STORAGE_KEY = "payment-sheet-draft-v2";
+const STORAGE_KEY = "transfer-receipt-layout-v3";
 
-const initialData: RecordData = {
-  brandName: "Northstar Trading",
-  brandTagline: "Operations Team",
-  accent: "#0c4d97",
-  statementTitle: "Telegraphic Transfer Confirmation",
-  referenceNo: "TT TO KAS - 7.18",
-  valueDate: "2026-07-18",
-  referenceNo2: "CLIENT-PO-1847",
-  beneficiaryCountry: "United States",
-  beneficiaryName: "Lakeside Services LLC",
-  beneficiaryBank: "Example Bank International",
-  beneficiaryAccount: "ACCT 0004 9318 4029 8742",
-  beneficiarySwift: "EXIMUS33",
-  payerName: "Northstar Trading Co. Ltd",
-  payerAccount: "ACCT 0908 3384 7721 1185",
-  payerReference: "NS-2026-0718-A",
-  transferCurrency: "USD",
-  transferAmount: "24,780.00",
-  settlementOption: "BENEFICIARY RECEIVES ALL CHARGES",
-  feePolicy: "Our bank: SHA",
-  paymentMethod: "International transfer (SWIFT)",
-  memo: "Consulting services invoice 2026-07",
-  language: "en",
+const defaults: ReceiptData = {
+  brandName: "NORTHSTAR",
+  documentFamily: "Third Party Account / autoPay - Business Internet Banking",
+  generatedAt: "7/18/26, 09:58",
+  transactionReference: "N71847749704",
+  telegraphicReference: "HK118076B5198045",
+  bankLocation: "UNITED STATES",
+  beneficiaryAccount: "138129149332",
+  paymentCurrency: "USD",
+  beneficiaryName: "KAS CUSTOMS SERVICES LLC",
+  beneficiaryBankName: "EXAMPLE BANK, NATIONAL ASSOCIATION",
+  beneficiaryBankAddress: "222 BROADWAY AVENUE\nNEW YORK NY 10038\nUNITED STATES",
+  beneficiarySwift: "EXAMUS3NXXX",
+  sourceAccountType: "USD Savings",
+  sourceAccountDetail: "817-862485-838   -   Business Integrated USD Savings",
+  paymentAmount: "247,890.00",
+  feeNotice:
+    "Other fees and charges may apply. For details, please refer to the applicable commercial tariff. Please check the transaction history on or after the payment date to confirm the transaction details.",
+  transferNotice:
+    "If we are unable to process this payment via RTGS, we will process it as a telegraphic transfer and the corresponding charges will apply. However, the related advice will still show 'Bank Fund Transfer' and not 'Outward Remittance'.",
+  paymentDate: "Today, Saturday 18 Jul 2026",
+  paymentDateNotice:
+    "Transaction requests submitted during business hours on a working day will be processed on the same day. Requests submitted at other times (e.g. on a public holiday) will be processed on the next working day.",
+  chargePolicy: "The beneficiary pays all bank charges.",
+  footerAddress: "document-template.local/payments/acknowledgement",
 };
 
-const labels = {
-  en: {
-    brandBadge: "DOCUMENT TEMPLATE",
-    statementType: "Customer-entered payment statement",
-    reference: "Reference",
-    secondaryRef: "Related reference",
-    valueDate: "Value date",
-    to: "Pay to",
-    country: "Beneficiary country / region",
-    beneficiary: "Beneficiary",
-    bank: "Beneficiary bank",
-    beneficiaryAccount: "Beneficiary account",
-    swift: "SWIFT / bank code",
-    from: "From",
-    payerName: "Payer name",
-    payerAccount: "Payer account",
-    payerRef: "Payer reference",
-    amount: "Amount",
-    settlement: "Settlement option",
-    fees: "Charge method",
-    paymentMethod: "Transfer method",
-    memo: "Payment purpose",
-    page1: "Bank transfer advisory form",
-    page2: "Appendix / declaration",
-    verify: "Verification notes",
-    watermark: "SAMPLE · NOT A BANK DOCUMENT",
-    actions: {
-      load: "Load",
-      save: "Save",
-      reset: "Reset",
-      print: "Print / Export PDF",
-    },
-    status: {
-      auto: "Auto-saved",
-      ready: "Ready",
-      saved: "Draft saved",
-      loaded: "Draft loaded",
-      empty: "No saved draft",
-      parseFail: "Unable to parse saved draft",
-      printBlock: "Please fix required fields before printing",
-      reset: "Draft reset",
-    },
-    noticeTitle: "Important",
-    notice:
-      "This statement is generated from user input only and is not issued by any bank.",
-    appendixNotice:
-      "Any release of goods or service should be verified with the real bank and settlement platform.",
-  },
-  zh: {
-    brandBadge: "单据模板",
-    statementType: "客户填写的支付回单样本",
-    reference: "参考号",
-    secondaryRef: "关联参考号",
-    valueDate: "到账日期",
-    to: "收款人",
-    country: "收款国家/地区",
-    beneficiary: "收款人名称",
-    bank: "收款行",
-    beneficiaryAccount: "收款账号",
-    swift: "SWIFT / 行号",
-    from: "付款方",
-    payerName: "付款人名称",
-    payerAccount: "付款账号",
-    payerRef: "付款方参考号",
-    amount: "金额",
-    settlement: "结算方式",
-    fees: "手续费",
-    paymentMethod: "支付方式",
-    memo: "用途备注",
-    page1: "银行转账凭证（演示）",
-    page2: "附页 / 声明",
-    verify: "核验说明",
-    watermark: "示例文件 · 非银行出具",
-    actions: {
-      load: "读取",
-      save: "保存",
-      reset: "重置",
-      print: "打印 / 导出 PDF",
-    },
-    status: {
-      auto: "自动保存",
-      ready: "已就绪",
-      saved: "草稿已保存",
-      loaded: "已读取草稿",
-      empty: "未找到保存草稿",
-      parseFail: "草稿解析失败",
-      printBlock: "请先完善必填信息后再打印",
-      reset: "已重置为默认内容",
-    },
-    noticeTitle: "提示",
-    notice: "本页面仅用于教学演示，字段内容由用户填入，非银行正式文件。",
-    appendixNotice: "发货/放行前请以银行流水和收款方确认信息为准。",
-  },
-};
-
-type FieldError = Record<string, string>;
-
-function Field({
+function TextField({
   label,
   value,
   onChange,
-  type = "text",
-  placeholder,
-  error,
+  multiline = false,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
-  type?: "text" | "date";
-  placeholder?: string;
-  error?: string;
+  multiline?: boolean;
 }) {
   return (
-    <label className="field">
+    <label className="editor-field">
       <span>{label}</span>
-      <input
-        type={type}
-        value={value}
-        placeholder={placeholder}
-        onChange={(event) => onChange(event.target.value)}
-        aria-invalid={Boolean(error)}
-      />
-      {error ? <small className="field-error">{error}</small> : null}
+      {multiline ? (
+        <textarea value={value} rows={3} onChange={(event) => onChange(event.target.value)} />
+      ) : (
+        <input value={value} onChange={(event) => onChange(event.target.value)} />
+      )}
     </label>
   );
 }
 
-function KVP({
-  label,
-  value,
-  className,
-}: {
-  label: string;
-  value: string;
-  className?: string;
-}) {
+function ReceiptField({ label, value }: { label: ReactNode; value: string }) {
   return (
-    <div className={`kv ${className || ""}`}>
-      <dt>{label}</dt>
-      <dd>{value || "—"}</dd>
+    <div className="receipt-field">
+      <div className="receipt-label">{label}</div>
+      <div className="receipt-value">{value || "-"}</div>
     </div>
   );
 }
 
-function formatAmount(currency: string, amount: string) {
-  const amountNumber = Number(amount.replace(/,/g, ""));
-  if (!Number.isFinite(amountNumber)) {
-    return `${currency} ${amount}`.trim();
-  }
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: currency || "USD",
-    currencyDisplay: "code",
-    minimumFractionDigits: 2,
-  }).format(amountNumber);
+function RunningHeader({ data }: { data: ReceiptData }) {
+  return (
+    <div className="running-header">
+      <span>{data.documentFamily}</span>
+      <span>{data.generatedAt}</span>
+    </div>
+  );
 }
 
-function formatDate(value: string, language: OutputLanguage) {
-  if (!value) return "—";
-  const date = new Date(`${value}T00:00:00`);
-  if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat(language === "zh" ? "zh-CN" : "en-GB", {
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  }).format(date);
+function PageFooter({ data, page }: { data: ReceiptData; page: number }) {
+  return (
+    <footer className="receipt-footer">
+      <span>{data.footerAddress}</span>
+      <span>Page {page} of 2</span>
+    </footer>
+  );
 }
 
-function mask(value: string) {
-  const plain = value.replace(/\s/g, "");
-  if (plain.length <= 4) return value;
-  return `*** **** **** ${plain.slice(-4)}`;
+function SafetyMarks() {
+  return (
+    <>
+      <div className="sample-banner">SAMPLE · NOT BANK ISSUED</div>
+      <div className="sample-watermark">SAMPLE · NOT BANK ISSUED</div>
+    </>
+  );
 }
 
 export default function Home() {
-  const [data, setData] = useState<RecordData>(initialData);
+  const [data, setData] = useState<ReceiptData>(defaults);
   const [logo, setLogo] = useState("");
-  const [maskAccount, setMaskAccount] = useState(true);
-  const [status, setStatus] = useState(labels[data.language].status.ready);
-  const [ready, setReady] = useState(false);
-  const [logoError, setLogoError] = useState("");
-  const [statusSaved, setStatusSaved] = useState(false);
+  const [status, setStatus] = useState("已就绪");
+  const [hydrated, setHydrated] = useState(false);
 
-  const copy = labels[data.language];
-  const initials = data.brandName
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join("")
-    .toUpperCase();
+  const initials = useMemo(
+    () =>
+      data.brandName
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part[0])
+        .join("")
+        .toUpperCase(),
+    [data.brandName],
+  );
 
-  const errors = useMemo<FieldError>(() => {
-    const result: FieldError = {};
-    if (!data.brandName.trim()) result.brandName = "Brand is required.";
-    if (!data.referenceNo.trim()) result.referenceNo = "Reference number is required.";
-    if (!data.beneficiaryName.trim()) result.beneficiaryName = "Beneficiary name is required.";
-    if (!data.payerName.trim()) result.payerName = "Payer name is required.";
-    if (!data.transferAmount.trim()) result.transferAmount = "Amount is required.";
-    if (!data.valueDate) result.valueDate = "Value date is required.";
-
-    const amountNum = Number(data.transferAmount.replace(/,/g, ""));
-    if (!Number.isFinite(amountNum) || amountNum <= 0) {
-      result.transferAmount = "Enter a positive number.";
-    }
-
-    return result;
-  }, [data]);
-
-  const update = <K extends keyof RecordData>(key: K, value: RecordData[K]) => {
+  const update = <K extends keyof ReceiptData>(key: K, value: ReceiptData[K]) => {
     setData((current) => ({ ...current, [key]: value }));
   };
 
-  const saveDraft = (showStatus = true) => {
-    const draft: SavedDraft = {
-      data,
-      logo,
-      maskAccount,
-      savedAt: new Date().toISOString(),
-    };
+  const save = (showStatus = true) => {
+    const draft: Draft = { data, logo };
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
-    if (showStatus) setStatus(copy.status.saved);
+    if (showStatus) setStatus("草稿已保存");
   };
 
-  const loadDraft = () => {
+  const load = () => {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) {
-      setStatus(copy.status.empty);
+      setStatus("没有找到已保存草稿");
       return;
     }
     try {
-      const draft = JSON.parse(raw) as SavedDraft;
-      setData({ ...initialData, ...draft.data });
+      const draft = JSON.parse(raw) as Draft;
+      setData({ ...defaults, ...draft.data });
       setLogo(draft.logo || "");
-      setMaskAccount(draft.maskAccount ?? true);
-      setStatus(copy.status.loaded);
+      setStatus("草稿已读取");
     } catch {
-      setStatus(copy.status.parseFail);
+      setStatus("草稿读取失败");
     }
   };
 
-  const resetDraft = () => {
-    if (!window.confirm("Reset all content to the default template?")) return;
-    setData(initialData);
+  const reset = () => {
+    if (!window.confirm("确认恢复默认内容？")) return;
+    setData(defaults);
     setLogo("");
-    setMaskAccount(true);
     window.localStorage.removeItem(STORAGE_KEY);
-    setStatus(copy.status.reset);
+    setStatus("已恢复默认内容");
   };
 
   const handleLogo = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    setLogoError("");
-
     if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
-      setLogoError("Only PNG, JPG, and WebP are allowed.");
-      event.target.value = "";
+      setStatus("Logo 仅支持 PNG、JPG 或 WebP");
       return;
     }
     if (file.size > 2 * 1024 * 1024) {
-      setLogoError("Image size should be less than 2MB.");
-      event.target.value = "";
+      setStatus("Logo 不能超过 2MB");
       return;
     }
-
     const reader = new FileReader();
-    reader.onload = () => setLogo(typeof reader.result === "string" ? reader.result : "");
+    reader.onload = () => {
+      setLogo(typeof reader.result === "string" ? reader.result : "");
+      setStatus("Logo 已更新");
+    };
     reader.readAsDataURL(file);
-  };
-
-  const printRecord = () => {
-    if (Object.keys(errors).length > 0) {
-      setStatus(copy.status.printBlock);
-      return;
-    }
-    window.print();
   };
 
   useEffect(() => {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (raw) {
       try {
-        const draft = JSON.parse(raw) as SavedDraft;
-        setData({ ...initialData, ...draft.data });
+        const draft = JSON.parse(raw) as Draft;
+        setData({ ...defaults, ...draft.data });
         setLogo(draft.logo || "");
-        setMaskAccount(draft.maskAccount ?? true);
       } catch {
         window.localStorage.removeItem(STORAGE_KEY);
       }
     }
-    setReady(true);
+    setHydrated(true);
   }, []);
 
   useEffect(() => {
-    if (!ready) return;
-    const timer = window.setTimeout(() => {
-      saveDraft(false);
-      setStatus((current) => (statusSaved ? copy.status.auto : current));
-      setStatusSaved(false);
-    }, 700);
+    if (!hydrated) return;
+    const timer = window.setTimeout(() => save(false), 700);
     return () => window.clearTimeout(timer);
-  }, [data, logo, maskAccount, copy.status, ready, statusSaved]);
-
-  useEffect(() => {
-    if (!ready) return;
-    setStatusSaved(true);
-  }, [data, logo, maskAccount, ready]);
+  }, [data, logo, hydrated]);
 
   return (
-    <main className="sheet-shell" style={{ "--brand": data.accent } as CSSProperties}>
-      <header className="topbar">
-        <div className="topbar-brand">
-          <div className="mini-logo">{initials}</div>
-          <div>
-            <strong>{data.brandName || "Brand"}</strong>
-            <span>{data.brandTagline}</span>
-          </div>
+    <main className="app-shell">
+      <header className="app-bar">
+        <div>
+          <strong>回执模板编辑器</strong>
+          <span>严格按参考 PDF 的两页结构排版</span>
         </div>
-        <div className="topbar-actions">
-          <span className="status" aria-live="polite">{status}</span>
-          <button className="btn ghost" type="button" onClick={loadDraft}>{copy.actions.load}</button>
-          <button className="btn ghost" type="button" onClick={() => saveDraft(true)}>{copy.actions.save}</button>
-          <button className="btn ghost danger" type="button" onClick={resetDraft}>{copy.actions.reset}</button>
-          <button className="btn primary" type="button" onClick={printRecord}>{copy.actions.print}</button>
+        <div className="app-actions">
+          <span className="save-status" aria-live="polite">{status}</span>
+          <button type="button" onClick={load}>读取</button>
+          <button type="button" onClick={() => save(true)}>保存</button>
+          <button type="button" onClick={reset}>重置</button>
+          <button type="button" className="primary-action" onClick={() => window.print()}>打印 / 导出 PDF</button>
         </div>
       </header>
 
-      <section className="split">
-        <aside className="editor">
-          <div className="pane-head">
-            <p className="kicker">{copy.brandBadge}</p>
-            <h1>{copy.page1}</h1>
-            <p>{copy.notice}</p>
-            <div className="lang-toggle">
-              <button type="button" className={data.language === "en" ? "active" : ""} onClick={() => update("language", "en")}>EN</button>
-              <button type="button" className={data.language === "zh" ? "active" : ""} onClick={() => update("language", "zh")}>中文</button>
-            </div>
+      <div className="workspace">
+        <aside className="editor-panel">
+          <div className="editor-intro">
+            <h1>编辑回执内容</h1>
+            <p>右侧回执的字段顺序、分栏、分页和留白固定，仅内容可修改。</p>
           </div>
 
-          <div className="card">
-            <h2>Brand and style</h2>
-            <div className="logo-block">
-              <div className="logo-preview">{logo ? <img src={logo} alt="Brand logo" /> : <span>{initials}</span>}</div>
-              <div>
-                <label className="upload">
-                  Upload logo
-                  <input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleLogo} />
-                </label>
-                <p>PNG/JPG/WebP, max 2MB</p>
-                {logoError ? <small className="field-error">{logoError}</small> : null}
-              </div>
-            </div>
-            <div className="grid">
-              <Field label="Brand name" value={data.brandName} onChange={(value) => update("brandName", value)} error={errors.brandName} />
-              <Field label="Tagline" value={data.brandTagline} onChange={(value) => update("brandTagline", value)} />
-              <Field label="Statement title" value={data.statementTitle} onChange={(value) => update("statementTitle", value)} />
-              <label className="field color-field">
-                <span>Accent color</span>
-                <input type="color" value={data.accent} onChange={(event) => update("accent", event.target.value)} />
-              </label>
-            </div>
-          </div>
-
-          <div className="card">
-            <h2>References</h2>
-            <div className="grid">
-              <Field label={copy.reference} value={data.referenceNo} onChange={(value) => update("referenceNo", value)} error={errors.referenceNo} />
-              <Field label={copy.secondaryRef} value={data.referenceNo2} onChange={(value) => update("referenceNo2", value)} />
-              <Field label={copy.valueDate} type="date" value={data.valueDate} onChange={(value) => update("valueDate", value)} error={errors.valueDate} />
-            </div>
-          </div>
-
-          <div className="card">
-            <h2>{copy.to}</h2>
-            <div className="grid">
-              <Field label={copy.country} value={data.beneficiaryCountry} onChange={(value) => update("beneficiaryCountry", value)} />
-              <Field label={copy.beneficiary} value={data.beneficiaryName} onChange={(value) => update("beneficiaryName", value)} error={errors.beneficiaryName} />
-              <Field label={copy.bank} value={data.beneficiaryBank} onChange={(value) => update("beneficiaryBank", value)} />
-              <Field label={copy.beneficiaryAccount} value={data.beneficiaryAccount} onChange={(value) => update("beneficiaryAccount", value)} />
-              <Field label={copy.swift} value={data.beneficiarySwift} onChange={(value) => update("beneficiarySwift", value)} />
-            </div>
-            <label className="toggle">
-              <span>Hide full account numbers</span>
-              <input type="checkbox" checked={maskAccount} onChange={(event) => setMaskAccount(event.target.checked)} />
+          <section className="editor-section">
+            <h2>品牌与页眉</h2>
+            <label className="logo-upload">
+              <span className="logo-preview">
+                {logo ? <img src={logo} alt="上传的品牌 Logo" /> : initials || "NS"}
+              </span>
+              <span><b>上传 Logo</b><small>PNG / JPG / WebP，最大 2MB</small></span>
+              <input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleLogo} />
             </label>
-          </div>
-
-          <div className="card">
-            <h2>{copy.from}</h2>
-            <div className="grid">
-              <Field label={copy.payerName} value={data.payerName} onChange={(value) => update("payerName", value)} error={errors.payerName} />
-              <Field label={copy.payerAccount} value={data.payerAccount} onChange={(value) => update("payerAccount", value)} />
-              <Field label={copy.payerRef} value={data.payerReference} onChange={(value) => update("payerReference", value)} />
+            <div className="editor-grid">
+              <TextField label="品牌名称" value={data.brandName} onChange={(value) => update("brandName", value)} />
+              <TextField label="页眉标题" value={data.documentFamily} onChange={(value) => update("documentFamily", value)} />
+              <TextField label="生成时间" value={data.generatedAt} onChange={(value) => update("generatedAt", value)} />
+              <TextField label="页脚地址" value={data.footerAddress} onChange={(value) => update("footerAddress", value)} />
             </div>
-          </div>
+          </section>
 
-          <div className="card">
-            <h2>Amount and settlement</h2>
-            <div className="grid">
-              <Field label={copy.paymentMethod} value={data.paymentMethod} onChange={(value) => update("paymentMethod", value)} />
-              <Field label={copy.settlement} value={data.settlementOption} onChange={(value) => update("settlementOption", value)} />
-              <Field label={copy.fees} value={data.feePolicy} onChange={(value) => update("feePolicy", value)} />
-                  <Field label={copy.amount} value={data.transferAmount} onChange={(value) => update("transferAmount", value)} error={errors.transferAmount} />
-                  <Field label={copy.memo} value={data.memo} onChange={(value) => update("memo", value)} />
-                  <Field label="Currency" value={data.transferCurrency} onChange={(value) => update("transferCurrency", value)} />
+          <section className="editor-section">
+            <h2>Reference</h2>
+            <div className="editor-grid">
+              <TextField label="Transaction reference number" value={data.transactionReference} onChange={(value) => update("transactionReference", value)} />
+              <TextField label="Telegraphic transfer reference number" value={data.telegraphicReference} onChange={(value) => update("telegraphicReference", value)} />
             </div>
-          </div>
+          </section>
+
+          <section className="editor-section">
+            <h2>Pay to</h2>
+            <div className="editor-grid">
+              <TextField label="Beneficiary bank location" value={data.bankLocation} onChange={(value) => update("bankLocation", value)} />
+              <TextField label="Beneficiary account number / IBAN" value={data.beneficiaryAccount} onChange={(value) => update("beneficiaryAccount", value)} />
+              <TextField label="Payment currency" value={data.paymentCurrency} onChange={(value) => update("paymentCurrency", value)} />
+              <TextField label="Beneficiary name" value={data.beneficiaryName} onChange={(value) => update("beneficiaryName", value)} />
+              <TextField label="Beneficiary bank name" value={data.beneficiaryBankName} onChange={(value) => update("beneficiaryBankName", value)} />
+              <TextField label="Beneficiary bank address" value={data.beneficiaryBankAddress} onChange={(value) => update("beneficiaryBankAddress", value)} multiline />
+              <TextField label="Beneficiary bank code / SWIFT" value={data.beneficiarySwift} onChange={(value) => update("beneficiarySwift", value)} />
+            </div>
+          </section>
+
+          <section className="editor-section">
+            <h2>From 与 Amount</h2>
+            <div className="editor-grid">
+              <TextField label="账户类型" value={data.sourceAccountType} onChange={(value) => update("sourceAccountType", value)} />
+              <TextField label="付款账户说明" value={data.sourceAccountDetail} onChange={(value) => update("sourceAccountDetail", value)} />
+              <TextField label="付款金额" value={data.paymentAmount} onChange={(value) => update("paymentAmount", value)} />
+              <TextField label="费用提示" value={data.feeNotice} onChange={(value) => update("feeNotice", value)} multiline />
+            </div>
+          </section>
+
+          <section className="editor-section">
+            <h2>第二页</h2>
+            <div className="editor-grid">
+              <TextField label="电汇说明" value={data.transferNotice} onChange={(value) => update("transferNotice", value)} multiline />
+              <TextField label="付款日期" value={data.paymentDate} onChange={(value) => update("paymentDate", value)} />
+              <TextField label="日期处理说明" value={data.paymentDateNotice} onChange={(value) => update("paymentDateNotice", value)} multiline />
+              <TextField label="费用承担" value={data.chargePolicy} onChange={(value) => update("chargePolicy", value)} />
+            </div>
+          </section>
         </aside>
 
-        <section className="preview" aria-label="Document preview">
-          <div className="document-stack">
-            <article className="doc-page">
-              <div className="doc-watermark">{copy.watermark}</div>
+        <section className="preview-panel" aria-label="回执预览">
+          <article className="receipt-page page-one">
+            <RunningHeader data={data} />
+            <SafetyMarks />
 
-              <header className="doc-titlebar">
-                <div className="doc-brand">
-                  <span className="doc-logo">{logo ? <img src={logo} alt="Logo" /> : <span>{initials}</span>}</span>
-                  <div>
-                    <small>{copy.statementType}</small>
-                    <h1>{data.brandName}</h1>
-                    <p>{data.brandTagline}</p>
+            <div className="page-one-content">
+              <div className="receipt-brand">
+                {logo ? (
+                  <img src={logo} alt="品牌 Logo" />
+                ) : (
+                  <>
+                    <span className="wordmark">{data.brandName}</span>
+                    <span className="fictional-mark" aria-hidden="true"><i /><i /></span>
+                  </>
+                )}
+              </div>
+
+              <section className="receipt-section reference-section">
+                <h2>Reference</h2>
+                <div className="two-column-fields">
+                  <ReceiptField label="Transaction reference number" value={data.transactionReference} />
+                  <ReceiptField label={<>Telegraphic transfer reference<br />number</>} value={data.telegraphicReference} />
+                </div>
+              </section>
+
+              <section className="receipt-section ruled payto-section">
+                <h2>Pay to</h2>
+                <div className="payto-grid">
+                  <div className="payto-left">
+                    <ReceiptField label="Beneficiary bank location" value={data.bankLocation} />
+                    <ReceiptField label="Payment currency" value={data.paymentCurrency} />
+                    <ReceiptField label="Beneficiary bank name" value={data.beneficiaryBankName} />
+                    <ReceiptField label="Beneficiary bank address" value={data.beneficiaryBankAddress} />
+                    <ReceiptField label="Beneficiary bank code/ SWIFT address" value={data.beneficiarySwift} />
+                  </div>
+                  <div className="payto-right">
+                    <ReceiptField label="Beneficiary account number / IBAN" value={data.beneficiaryAccount} />
+                    <ReceiptField label="Beneficiary name" value={data.beneficiaryName} />
                   </div>
                 </div>
-                <div className="chip">{copy.brandBadge}</div>
-              </header>
+                <p className="verification-copy">Name checking may not be conducted in the fund transfer. Please carefully verify the payee’s account number and other payment details.</p>
+              </section>
 
-              <section className="intro-band">
-                <h2>{data.statementTitle}</h2>
-                <div className="intro-meta">
-                  <span>{copy.reference}: {data.referenceNo}</span>
-                  <span>{copy.secondaryRef}: {data.referenceNo2}</span>
-                  <span>{copy.valueDate}: {formatDate(data.valueDate, data.language)}</span>
+              <section className="receipt-section ruled compact-section">
+                <h2>From</h2>
+                <div className="source-block">
+                  <strong>{data.sourceAccountType}</strong>
+                  <p>{data.sourceAccountDetail}</p>
                 </div>
               </section>
 
-              <section className="kv-section">
-                <h3>{copy.to}</h3>
-                <div className="kv-grid">
-                  <KVP label={copy.country} value={data.beneficiaryCountry} />
-                  <KVP label={copy.beneficiary} value={data.beneficiaryName} />
-                  <KVP label={copy.bank} value={data.beneficiaryBank} />
-                  <KVP label={copy.beneficiaryAccount} value={maskAccount ? mask(data.beneficiaryAccount) : data.beneficiaryAccount} />
-                  <KVP label={copy.swift} value={data.beneficiarySwift} />
+              <section className="receipt-section ruled amount-section">
+                <h2>Amount</h2>
+                <div className="amount-block">
+                  <span>Payment amount</span>
+                  <p><small>{data.paymentCurrency}</small> {data.paymentAmount}</p>
                 </div>
+                <p className="fee-copy">{data.feeNotice}</p>
               </section>
 
-              <section className="kv-section">
-                <h3>{copy.from}</h3>
-                <div className="kv-grid">
-                  <KVP label={copy.payerName} value={data.payerName} />
-                  <KVP label={copy.payerAccount} value={maskAccount ? mask(data.payerAccount) : data.payerAccount} />
-                  <KVP label={copy.payerRef} value={data.payerReference} className="full" />
-                </div>
+              <section className="receipt-section ruled settlement-section">
+                <h2>Settlement option</h2>
+              </section>
+            </div>
+
+            <PageFooter data={data} page={1} />
+          </article>
+
+          <article className="receipt-page page-two">
+            <RunningHeader data={data} />
+            <SafetyMarks />
+
+            <div className="page-two-content">
+              <section className="page-two-lead">
+                <h3>Telegraphic transfer</h3>
+                <p>{data.transferNotice}</p>
               </section>
 
-              <section className="amount-strip">
-                <div>
-                  <small>{copy.amount}</small>
-                  <strong>{formatAmount(data.transferCurrency, data.transferAmount)}</strong>
-                  <p>Bank transfer · {data.paymentMethod}</p>
-                </div>
-                <div>
-                  <small>{copy.settlement}</small>
-                  <p>{data.settlementOption}</p>
-                </div>
-                <div>
-                  <small>{copy.fees}</small>
-                  <p>{data.feePolicy}</p>
-                </div>
+              <section className="receipt-section ruled second-page-section">
+                <h2>Payment date</h2>
+                <strong>{data.paymentDate}</strong>
+                <p>{data.paymentDateNotice}</p>
               </section>
 
-              <section className="note">
-                <small>{copy.memo}</small>
-                <p>{data.memo || "—"}</p>
+              <section className="receipt-section ruled second-page-section charge-section">
+                <h2>Who pays local / overseas charges</h2>
+                <strong>{data.chargePolicy}</strong>
               </section>
+            </div>
 
-              <footer className="doc-footer">
-                <p>{copy.noticeTitle}: {copy.notice}</p>
-                <span>Page 1 / 2</span>
-              </footer>
-            </article>
-
-            <article className="doc-page">
-              <div className="doc-watermark">{copy.watermark}</div>
-              <header className="doc-titlebar">
-                <div className="doc-brand">
-                  <span className="doc-logo">{logo ? <img src={logo} alt="Logo" /> : <span>{initials}</span>}</span>
-                  <div>
-                    <small>{copy.page2}</small>
-                    <h1>{copy.verify}</h1>
-                  </div>
-                </div>
-                <div className="chip">{copy.brandBadge}</div>
-              </header>
-
-              <section className="appendix">
-                <h3>Verification checklist</h3>
-                <div className="appendix-grid">
-                  <div>
-                    <span>1</span>
-                    <p>Compare the payer account, payee account, SWIFT code, and value date.</p>
-                  </div>
-                  <div>
-                    <span>2</span>
-                    <p>Match amount, reference, and memo before any release.</p>
-                  </div>
-                  <div>
-                    <span>3</span>
-                    <p>Confirm settlement with your bank statement and receiving bank confirmation.</p>
-                  </div>
-                  <div>
-                    <span>4</span>
-                    <p>Keep this record with invoice and approval chain.</p>
-                  </div>
-                </div>
-                <div className="kv-summary">
-                  <KVP label={copy.reference} value={data.referenceNo} />
-                  <KVP label={copy.secondaryRef} value={data.referenceNo2} />
-                  <KVP label={copy.amount} value={formatAmount(data.transferCurrency, data.transferAmount)} />
-                  <KVP label={copy.valueDate} value={formatDate(data.valueDate, data.language)} />
-                  <KVP label={copy.settlement} value={data.settlementOption} className="full" />
-                  <KVP label={copy.memo} value={data.memo || "—"} className="full" />
-                </div>
-              </section>
-
-              <section className="note">
-                <small>{copy.noticeTitle}</small>
-                <p>{copy.appendixNotice}</p>
-              </section>
-
-              <footer className="doc-footer">
-                <p>{copy.notice}</p>
-                <span>Page 2 / 2</span>
-              </footer>
-            </article>
-          </div>
+            <PageFooter data={data} page={2} />
+          </article>
         </section>
-      </section>
+      </div>
     </main>
   );
 }
