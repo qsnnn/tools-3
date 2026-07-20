@@ -422,20 +422,6 @@ button {
   letter-spacing: 0.02em;
 }
 
-.sample-banner {
-  position: absolute;
-  z-index: 3;
-  top: 58px;
-  right: 24px;
-  padding: 4px 7px;
-  border: 1px solid #d71920;
-  color: #b20e14;
-  background: #fff;
-  font-size: 8px;
-  font-weight: 700;
-  letter-spacing: 0.09em;
-}
-
 .sample-watermark {
   position: absolute;
   z-index: 0;
@@ -687,7 +673,7 @@ button {
   bottom: 28px;
   left: 24px;
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 24px;
   font-size: 8.8px;
   letter-spacing: 0.015em;

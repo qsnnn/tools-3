@@ -23,7 +23,6 @@ type ReceiptData = {
   paymentDate: string;
   paymentDateNotice: string;
   chargePolicy: string;
-  footerAddress: string;
 };
 
 type Draft = {
@@ -60,7 +59,6 @@ const defaults: ReceiptData = {
   paymentDateNotice:
     "Transaction requests submitted during business hours on a working day will be processed on the same day. Requests submitted at other times (e.g. on a public holiday) will be processed on the next working day.",
   chargePolicy: "The beneficiary pays all bank charges.",
-  footerAddress: "document-template.local/payments/acknowledgement",
 };
 
 function TextField({
@@ -104,10 +102,9 @@ function RunningHeader({ data }: { data: ReceiptData }) {
   );
 }
 
-function PageFooter({ data, page }: { data: ReceiptData; page: number }) {
+function PageFooter({ page }: { page: number }) {
   return (
     <footer className="receipt-footer">
-      <span>{data.footerAddress}</span>
       <span>Page {page} of 2</span>
     </footer>
   );
@@ -115,10 +112,7 @@ function PageFooter({ data, page }: { data: ReceiptData; page: number }) {
 
 function SafetyMarks() {
   return (
-    <>
-      <div className="sample-banner">SAMPLE · NOT BANK ISSUED</div>
-      <div className="sample-watermark">SAMPLE · NOT BANK ISSUED</div>
-    </>
+    <div className="sample-watermark">SAMPLE · NOT BANK ISSUED</div>
   );
 }
 
@@ -303,7 +297,6 @@ export default function Home() {
               <TextField label="品牌名称" value={data.brandName} onChange={(value) => update("brandName", value)} />
               <TextField label="页眉标题" value={data.documentFamily} onChange={(value) => update("documentFamily", value)} />
               <TextField label="生成时间" value={data.generatedAt} onChange={(value) => update("generatedAt", value)} />
-              <TextField label="页脚地址" value={data.footerAddress} onChange={(value) => update("footerAddress", value)} />
             </div>
           </section>
 
@@ -421,7 +414,7 @@ export default function Home() {
               </section>
             </div>
 
-            <PageFooter data={data} page={1} />
+            <PageFooter page={1} />
           </article>
 
           <article className="receipt-page page-two">
@@ -446,7 +439,7 @@ export default function Home() {
               </section>
             </div>
 
-            <PageFooter data={data} page={2} />
+            <PageFooter page={2} />
           </article>
         </section>
       </div>
