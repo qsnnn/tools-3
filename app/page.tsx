@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, ReactNode, useEffect, useMemo, useState } from "react";
+import { ChangeEvent, CSSProperties, ReactNode, useEffect, useMemo, useState } from "react";
 
 type ReceiptData = {
   brandName: string;
@@ -29,6 +29,7 @@ type ReceiptData = {
 type Draft = {
   data: ReceiptData;
   logo: string;
+  logoScale: number;
 };
 
 const STORAGE_KEY = "transfer-receipt-layout-v3";
@@ -122,6 +123,7 @@ function SafetyMarks() {
 export default function Home() {
   const [data, setData] = useState<ReceiptData>(defaults);
   const [logo, setLogo] = useState("");
+  const [logoScale, setLogoScale] = useState(100);
   const [status, setStatus] = useState("已就绪");
   const [hydrated, setHydrated] = useState(false);
 
@@ -142,7 +144,7 @@ export default function Home() {
   };
 
   const save = (showStatus = true) => {
-    const draft: Draft = { data, logo };
+    const draft: Draft = { data, logo, logoScale };
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
     if (showStatus) setStatus("草稿已保存");
   };
@@ -157,6 +159,7 @@ export default function Home() {
       const draft = JSON.parse(raw) as Draft;
       setData({ ...defaults, ...draft.data });
       setLogo(draft.logo || "");
+      setLogoScale(Math.min(160, Math.max(60, draft.logoScale || 100)));
       setStatus("草稿已读取");
     } catch {
       setStatus("草稿读取失败");
@@ -167,6 +170,7 @@ export default function Home() {
     if (!window.confirm("确认恢复默认内容？")) return;
     setData(defaults);
     setLogo("");
+    setLogoScale(100);
     window.localStorage.removeItem(STORAGE_KEY);
     setStatus("已恢复默认内容");
   };
@@ -190,6 +194,14 @@ export default function Home() {
     reader.readAsDataURL(file);
   };
 
+  const changeLogoScale = (delta: number) => {
+    setLogoScale((current) => {
+      const next = Math.min(160, Math.max(60, current + delta));
+      setStatus(`Logo 大小 ${next}%`);
+      return next;
+    });
+  };
+
   useEffect(() => {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (raw) {
@@ -197,6 +209,7 @@ export default function Home() {
         const draft = JSON.parse(raw) as Draft;
         setData({ ...defaults, ...draft.data });
         setLogo(draft.logo || "");
+        setLogoScale(Math.min(160, Math.max(60, draft.logoScale || 100)));
       } catch {
         window.localStorage.removeItem(STORAGE_KEY);
       }
@@ -208,7 +221,7 @@ export default function Home() {
     if (!hydrated) return;
     const timer = window.setTimeout(() => save(false), 700);
     return () => window.clearTimeout(timer);
-  }, [data, logo, hydrated]);
+  }, [data, logo, logoScale, hydrated]);
 
   return (
     <main className="app-shell">
@@ -242,6 +255,14 @@ export default function Home() {
               <span><b>上传 Logo</b><small>PNG / JPG / WebP，最大 2MB</small></span>
               <input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleLogo} />
             </label>
+            <div className="logo-size-controls" aria-label="Logo 大小调整">
+              <span>Logo 大小</span>
+              <div>
+                <button type="button" aria-label="缩小 Logo" disabled={logoScale <= 60} onClick={() => changeLogoScale(-10)}>−</button>
+                <output>{logoScale}%</output>
+                <button type="button" aria-label="放大 Logo" disabled={logoScale >= 160} onClick={() => changeLogoScale(10)}>＋</button>
+              </div>
+            </div>
             <div className="editor-grid">
               <TextField label="品牌名称" value={data.brandName} onChange={(value) => update("brandName", value)} />
               <TextField label="页眉标题" value={data.documentFamily} onChange={(value) => update("documentFamily", value)} />
@@ -298,7 +319,7 @@ export default function Home() {
             <SafetyMarks />
 
             <div className="page-one-content">
-              <div className="receipt-brand">
+              <div className="receipt-brand" style={{ "--logo-scale": logoScale / 100 } as CSSProperties}>
                 {logo ? (
                   <img src={logo} alt="品牌 Logo" />
                 ) : (

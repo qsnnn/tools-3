@@ -249,6 +249,59 @@ button {
   font-size: 10px;
 }
 
+.logo-size-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: -3px 0 12px;
+  padding: 7px 9px;
+  border: 1px solid #e0e2e6;
+  border-radius: 5px;
+  background: #f8f9fa;
+}
+
+.logo-size-controls > span {
+  color: #42464d;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.logo-size-controls > div {
+  display: grid;
+  grid-template-columns: 30px 48px 30px;
+  align-items: center;
+  gap: 5px;
+}
+
+.logo-size-controls button {
+  width: 30px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid #c8ccd2;
+  border-radius: 4px;
+  color: #111;
+  background: #fff;
+  font-size: 17px;
+  line-height: 1;
+}
+
+.logo-size-controls button:hover:not(:disabled) {
+  border-color: #777;
+  background: #f0f0f0;
+}
+
+.logo-size-controls button:disabled {
+  cursor: not-allowed;
+  opacity: 0.35;
+}
+
+.logo-size-controls output {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+}
+
 .preview-panel {
   display: flex;
   flex-direction: column;
@@ -330,6 +383,8 @@ button {
   align-items: center;
   height: 42px;
   margin-left: -11px;
+  transform: scale(var(--logo-scale, 1));
+  transform-origin: left center;
 }
 
 .receipt-brand img {
