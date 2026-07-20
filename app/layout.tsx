@@ -12,8 +12,10 @@ export async function generateMetadata(): Promise<Metadata> {
   } catch {
     origin = new URL("http://localhost:3000");
   }
-  const title = "RecordCraft - 付款记录工作台";
-  const description = "为企业生成清晰、可核验、带安全标识的客户付款记录。支持自有品牌、自动保存和 A4 PDF 导出。";
+
+  const title = "Transfer Record Studio";
+  const description =
+    "Generate a styled telegraphic transfer style record with editable sections, local draft save/load, and A4 print/PDF export.";
   const image = new URL("/og.png", origin).toString();
 
   return {
@@ -28,7 +30,14 @@ export async function generateMetadata(): Promise<Metadata> {
       title,
       description,
       type: "website",
-      images: [{ url: image, width: 1536, height: 1024, alt: "RecordCraft 付款记录工作台" }],
+      images: [
+        {
+          url: image,
+          width: 1536,
+          height: 1024,
+          alt: "Transfer Record Studio preview",
+        },
+      ],
     },
     twitter: {
       card: "summary_large_image",
@@ -50,3 +59,4 @@ export default function RootLayout({
     </html>
   );
 }
+
