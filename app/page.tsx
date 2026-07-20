@@ -114,6 +114,10 @@ function PageFooter({ page }: { page: number }) {
 
 
 
+function SafetyMarks() {
+  return <div className="sample-watermark">SAMPLE · NOT BANK ISSUED</div>;
+}
+
 export default function Home() {
   const [data, setData] = useState<ReceiptData>(defaults);
   const [logo, setLogo] = useState("");
@@ -343,6 +347,7 @@ export default function Home() {
         <section className="preview-panel" aria-label="回执预览">
           <article className="receipt-page page-one">
             <RunningHeader data={data} />
+            <SafetyMarks />
             <div className="page-one-content">
               <div
                 className="receipt-brand"
@@ -415,6 +420,7 @@ export default function Home() {
 
           <article className="receipt-page page-two">
             <RunningHeader data={data} />
+            <SafetyMarks />
             <div className="page-two-content">
               <section className="page-two-lead">
                 <h3>Telegraphic transfer</h3>
