@@ -422,21 +422,6 @@ button {
   letter-spacing: 0.02em;
 }
 
-.sample-watermark {
-  position: absolute;
-  z-index: 0;
-  top: 51%;
-  left: 50%;
-  transform: translate(-50%, -50%) rotate(-30deg);
-  color: #c5171e;
-  opacity: 0.085;
-  white-space: nowrap;
-  font-size: 47px;
-  font-weight: 700;
-  letter-spacing: 0.16em;
-  pointer-events: none;
-}
-
 .page-one-content,
 .page-two-content,
 .receipt-footer {
